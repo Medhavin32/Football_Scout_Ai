@@ -109,7 +109,8 @@ function calculateIntelligence(stats) {
 }
 
 // Express Route Handler
-function performanceVideoUploadHandler(req, res) {
+// Modified Express Route Handler
+function performanceVideoUploadHandler() {
   const performanceMetricsService = new PerformanceMetricsService();
 
   return async (req, res) => {
@@ -122,16 +123,85 @@ function performanceVideoUploadHandler(req, res) {
         return res.status(400).json({ error: 'No video file uploaded' });
       }
 
-      const metrics = await performanceMetricsService.processVideoAndSaveMetrics(
-        playerProfileId, 
-        parseInt(jerseyNumber), 
-        videoFile.path
-      );
+      // Check if we're in testing mode (no playerProfileId)
+      const isTestMode = !playerProfileId;
+      
+      if (isTestMode) {
+        // Skip database saving, just process the video
+        try {
+          // Create FormData
+          const formData = new FormData();
+          formData.append('jersey_number', jerseyNumber.toString());
+          const fileStream = fs.createReadStream(videoFile.path);
+          formData.append('video', fileStream, {
+            filename: 'football.mp4',
+            contentType: 'video/mp4'
+          });
 
-      res.status(200).json({ 
-        message: 'Performance metrics processed and saved',
-        metrics 
-      });
+          // Make API call to Python backend
+          const response = await axios.post(
+            'http://127.0.0.1:5003/process_video', 
+            formData,
+            {
+              headers: {
+                ...formData.getHeaders(),
+                'Content-Type': 'multipart/form-data'
+              }
+            }
+          );
+
+          // Extract performance metrics
+          const stats = response.data.player_stats;
+
+          // Parse numeric values
+          const topSpeed = parseFloat(stats.top_speed.replace(' km/h', ''));
+          const distanceCovered = parseFloat(stats.distance_covered.replace(' km', ''));
+
+          // Calculate additional metrics
+          const agility = calculateAgility(stats);
+          const stamina = calculateStamina(distanceCovered);
+          const intelligence = calculateIntelligence(stats);
+
+          // Clean up
+          fileStream.destroy();
+          try {
+            await fs.promises.unlink(videoFile.path);
+          } catch (err) {
+            console.error('Error cleaning up video file:', err);
+          }
+
+          // Return the processed metrics without saving to database
+          return res.status(200).json({ 
+            message: 'Performance metrics processed (TEST MODE - not saved to database)',
+            metrics: {
+              speed: topSpeed,
+              dribbling: stats.dribble_success,
+              passing: stats.pass_accuracy,
+              shooting: stats.shot_conversion,
+              agility,
+              stamina,
+              intelligence,
+              // Include raw stats for debugging
+              raw_stats: stats
+            }
+          });
+        } catch (error) {
+          console.error('Error in test mode processing:', error);
+          throw error;
+        }
+      } else {
+        // Normal mode with database saving
+        const metrics = await performanceMetricsService.processVideoAndSaveMetrics(
+          playerProfileId, 
+          parseInt(jerseyNumber), 
+          videoFile.path
+        );
+
+        res.status(200).json({ 
+          message: 'Performance metrics processed and saved',
+          metrics 
+        });
+      }
     } catch (error) {
       console.error('Video processing error:', error);
       res.status(500).json({ 
