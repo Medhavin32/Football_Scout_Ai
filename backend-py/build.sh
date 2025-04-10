@@ -4,5 +4,5 @@
 pip install git+https://${GITHUB_TOKEN}@github.com/facebookresearch/pytorchvideo.git
 
 # Install your main requirements
-pip install -r backend-py/requirements.txt
+pip install -r requirements.txt
 
