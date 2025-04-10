@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Install PyTorchVideo using GitHub token from environment variable
-pip install git+https://${GITHUB_TOKEN}@github.com/facebookresearch/pytorchvideo.git
-
-# Install your main requirements
+# Install main dependencies
 pip install -r requirements.txt
+
+# Install PyTorchVideo from pre-built wheel (via PyPI, NOT GitHub to avoid OOM)
+pip install pytorchvideo==0.1.5
 
