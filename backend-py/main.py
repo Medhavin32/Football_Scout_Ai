@@ -2,6 +2,7 @@ import pytesseract  # Optical Character Recognition (OCR)
 
 # Set the correct path to Tesseract
 pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
+from pytorchvideo.models.hub import slowfast_r50
 
 from flask import Flask, request, jsonify
 import torch
@@ -19,7 +20,7 @@ app = Flask(__name__)
 
 # Load models
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-slowfast_model = torch.hub.load('facebookresearch/pytorchvideo', 'slowfast_r50', pretrained=True)
+slowfast_model = slowfast_r50(pretrained=True)
 slowfast_model = slowfast_model.to(device).eval()
 
 yolo_model = YOLO("yolov8n.pt")  # Load YOLOv8 for player detection
