@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: football-ai-backend
+    env: python
+    buildCommand: ./backend-py/build.sh
+    startCommand: gunicorn backend-py.main:app
+    plan: free
+    region: oregon
+    runtime: python
+
