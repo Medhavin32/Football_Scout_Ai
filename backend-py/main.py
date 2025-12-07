@@ -2,6 +2,7 @@ import pytesseract  # Optical Character Recognition (OCR)
 
 # Set the correct path to Tesseract
 pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
+<<<<<<< HEAD
 
 from flask import Flask, request, jsonify
 import torch
@@ -17,6 +18,22 @@ import pytesseract  # Optical Character Recognition (OCR)
 
 app = Flask(__name__)
 
+=======
+from flask import Flask, request, jsonify
+import torch
+import torchvision.transforms as transforms
+import cv2
+from collections import deque
+from deep_sort_realtime.deepsort_tracker import DeepSort
+from ultralytics import YOLO
+from PIL import Image
+import json
+import os
+import pytesseract  # Optical Character Recognition (OCR)
+
+app = Flask(__name__)
+
+>>>>>>> 067e5ceffa1c17e6b3e0d60e340c0aa8a1336a18
 # Load models
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 slowfast_model = torch.hub.load('facebookresearch/pytorchvideo', 'slowfast_r50', pretrained=True)

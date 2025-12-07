@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: football-scout-api
+    env: python
+    buildCommand: |
+      chmod +x backend-py/build.sh
+      ./backend-py/build.sh
+    startCommand: python main.py
+    workingDir: backend-py
+
