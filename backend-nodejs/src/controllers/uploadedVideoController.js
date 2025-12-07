@@ -2,31 +2,79 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * Helper function to calculate profile completion
+ */
+const calculateProfileCompletion = (user, playerProfile) => {
+  const requiredFields = [
+    user.name,
+    user.email,
+    user.phoneNumber,
+    user.countryCode,
+    user.city,
+    user.state,
+    user.country,
+    user.pincode,
+    user.profilePicture,
+    playerProfile !== null && playerProfile !== undefined
+  ];
+
+  const completedFields = requiredFields.filter(field => {
+    if (typeof field === 'boolean') return field === true;
+    return field !== null && field !== undefined && field !== '';
+  });
+
+  return Math.round((completedFields.length / requiredFields.length) * 100);
+};
+
 export const uploadVideo = async (req, res) => {
   try {
     const { videoUrl, playerProfileId } = req.body;
 
     const user = await prisma.user.findUnique({ 
-      where: { id: req.user.uid } 
+      where: { id: req.user.uid },
+      include: { playerProfile: true }
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const playerProfile = await prisma.playerProfile.findUnique({
-      where: { id: playerProfileId }
-    });
+    // Check profile completion
+    const completionPercentage = calculateProfileCompletion(user, user.playerProfile);
+    if (completionPercentage < 100) {
+      return res.status(400).json({ 
+        error: 'Profile incomplete', 
+        message: 'Your profile must be 100% complete to upload videos. Please complete all required fields.',
+        completionPercentage
+      });
+    }
 
-    if (!playerProfile) {
-      return res.status(400).json({ error: "Player profile does not exist." });
+    // Check verification status
+    if (user.verificationStatus !== 'VERIFIED') {
+      return res.status(403).json({ 
+        error: 'Profile not verified', 
+        message: 'Your profile must be verified by a scout before you can upload videos.',
+        verificationStatus: user.verificationStatus
+      });
+    }
+
+    // Only check if playerProfile exists if playerProfileId is provided
+    if (playerProfileId) {
+      const playerProfile = await prisma.playerProfile.findUnique({
+        where: { id: playerProfileId }
+      });
+
+      if (!playerProfile) {
+        return res.status(400).json({ error: "Player profile does not exist." });
+      }
     }
 
     const uploadedVideo = await prisma.uploadedVideo.create({
       data: {
         userId: user.id,
         videoUrl,
-        playerProfileId: playerProfileId || null,
+        playerProfileId: playerProfileId || user.playerProfile?.id || null,
         status: 'PENDING'
       }
     });

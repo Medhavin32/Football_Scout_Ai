@@ -19,8 +19,31 @@ model User {
   name         String
   email        String  @unique
   password     String
-  role         UserRole @default(PLAYER) // [PLAYER, SCOUT]
+  role         UserRole @default(PLAYER)
   playerProfileId String?
+  
+  // Profile fields
+  phoneNumber  String?
+  countryCode  String?
+  city         String?
+  state        String?
+  country      String?
+  pincode      String?
+  profilePicture String?
+
+  // Scout club affiliation
+  clubName String? // For scouts - their club affiliation
+
+  // Document fields
+  documentNumber String?
+  documentPhotos String[] // Array of document photo URLs
+  
+  // Verification fields
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationRemarks String?
+  verifiedBy   String?
+  verifiedAt   DateTime?
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -28,11 +51,19 @@ model User {
   playerProfile PlayerProfile?
   uploadedVideos UploadedVideo[]
   scoutReports ScoutReport[]
+  videoSelections VideoSelection[]
 }
 
 enum UserRole {
   PLAYER
   SCOUT
+  ADMIN // New role for account verification
+}
+
+enum VerificationStatus {
+  VERIFIED
+  PENDING
+  REJECTED
 }
 
 //player profile model
@@ -71,6 +102,7 @@ model UploadedVideo {
   // Relations
   user         User @relation(fields: [userId], references: [id])
   playerProfile PlayerProfile? @relation(fields: [playerProfileId], references: [id])
+  videoSelections VideoSelection[]
 }
 
 enum VideoStatus {
@@ -117,4 +149,31 @@ model ScoutReport {
   // Relations
   scout        User @relation(fields: [scoutId], references: [id])
   playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+}
+
+model VideoSelection {
+  id           String  @id @default(uuid())
+  videoId      String
+  scoutId      String
+  status       SelectionStatus @default(VIEWED)
+  clubName     String?
+  comments     String?
+  selectedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  video        UploadedVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  scout        User @relation(fields: [scoutId], references: [id])
+  
+  @@unique([videoId, scoutId])
+  @@index([videoId])
+  @@index([scoutId])
+}
+
+enum SelectionStatus {
+  VIEWED
+  INTERESTED
+  SELECTED
+  REJECTED
 }

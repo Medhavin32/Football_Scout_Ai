@@ -36,27 +36,34 @@ class PerformanceMetricsService {
       // Extract performance metrics
       const stats = response.data.player_stats;
 
-      // Parse numeric values
-      const topSpeed = parseFloat(stats.top_speed.replace(' km/h', ''));
-      const distanceCovered = parseFloat(stats.distance_covered.replace(' km', ''));
+      // Only save performance metrics if playerProfileId is provided
+      if (playerProfileId) {
+        // Parse numeric values
+        const topSpeed = parseFloat(stats.top_speed.replace(' km/h', ''));
+        // Python backend now returns distance_covered in meters, e.g. "905.35 m"
+        const distanceCovered = parseFloat(stats.distance_covered.replace(' m', ''));
 
-      // Save to database
-      const performanceMetrics = await this.prisma.performanceMetrics.create({
-        data: {
-          playerProfileId,
-          speed: topSpeed,
-          dribbling: stats.dribble_success,
-          passing: stats.pass_accuracy,
-          shooting: stats.shot_conversion,
-          // Additional fields can be mapped or calculated
-          agility: calculateAgility(stats),
-          stamina: calculateStamina(distanceCovered),
-          intelligence: calculateIntelligence(stats),
-        }
-      });
+        // Save to database
+        const performanceMetrics = await this.prisma.performanceMetrics.create({
+          data: {
+            playerProfileId,
+            speed: topSpeed,
+            dribbling: stats.dribble_success,
+            passing: stats.pass_accuracy,
+            shooting: stats.shot_conversion,
+            // Additional fields can be mapped or calculated
+            agility: calculateAgility(stats),
+            stamina: calculateStamina(distanceCovered),
+            intelligence: calculateIntelligence(stats),
+          }
+        });
 
-      console.log('Performance metrics saved successfully', performanceMetrics);
-      return performanceMetrics;
+        console.log('Performance metrics saved successfully', performanceMetrics);
+        return { stats, performanceMetrics };
+      } else {
+        console.log('No playerProfileId provided, skipping performance metrics save');
+        return { stats, performanceMetrics: null };
+      }
     } catch (error) {
       console.error('Error processing video and saving metrics:', error);
       throw error;
@@ -95,8 +102,11 @@ function calculateAgility(stats) {
 }
 
 function calculateStamina(distanceCovered) {
-  // Example calculation - adjust based on your specific requirements
-  return Math.min(distanceCovered / 14, 100);
+  // distanceCovered is in meters; normalize so ~1000m ≈ 100 stamina, capped 0–100
+  const referenceDistance = 1000; // 1 km as full stamina
+  if (!distanceCovered || distanceCovered <= 0) return 0;
+  const stamina = (distanceCovered / referenceDistance) * 100;
+  return Math.max(0, Math.min(stamina, 100));
 }
 
 function calculateIntelligence(stats) {
@@ -143,6 +153,8 @@ function performanceVideoUploadHandler(req, res) {
 }
 
 // Example Express Route Setup
+// Note: This route should also use requireVerifiedProfile middleware
+// Import it in server.js and apply it here if needed
 function setupRoutes(app) {
   const upload = multer({ 
     dest: 'uploads/', 

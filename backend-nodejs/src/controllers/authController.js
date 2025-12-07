@@ -7,7 +7,18 @@ const prisma = new PrismaClient();
 
 export const signup = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      role,
+      phoneNumber,
+      countryCode,
+      city,
+      state,
+      country,
+      pincode
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -25,13 +36,21 @@ export const signup = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user in Prisma
+    // Create user in Prisma with new fields
+    // verificationStatus defaults to PENDING in schema
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role
+        role,
+        phoneNumber: phoneNumber || null,
+        countryCode: countryCode || null,
+        city: city || null,
+        state: state || null,
+        country: country || null,
+        pincode: pincode || null,
+        verificationStatus: 'PENDING' // Explicitly set default
       }
     });
 
@@ -42,6 +61,7 @@ export const signup = async (req, res) => {
         name: user.name, 
         email: user.email, 
         role: user.role,
+        verificationStatus: user.verificationStatus,
         firebaseUid: firebaseUser.uid
       } 
     });
@@ -58,14 +78,14 @@ export const login = async (req, res) => {
     // Find user in Prisma
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ error: 'Invalid credentials'});
     }
 
     // Check role for scout login
     if (role === 'SCOUT') {
       // Static scout credentials check
-      const SCOUT_EMAIL = process.env.SCOUT_EMAIL;
-      const SCOUT_PASSWORD = process.env.SCOUT_PASSWORD;
+      const SCOUT_EMAIL = 'scout@yourdomain.com';
+      const SCOUT_PASSWORD = 'Qwert12345@';
 
       if (email !== SCOUT_EMAIL || password !== SCOUT_PASSWORD) {
         return res.status(403).json({ error: 'Invalid scout credentials' });
