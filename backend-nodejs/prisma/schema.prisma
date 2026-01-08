@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,51 +7,130 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//auth model
 model User {
-  id           String  @id @default(uuid())
-  name         String
-  email        String  @unique
-  password     String
-  role         UserRole @default(PLAYER)
-  playerProfileId String?
-  
-  // Profile fields
-  phoneNumber  String?
-  countryCode  String?
-  city         String?
-  state        String?
-  country      String?
-  pincode      String?
-  profilePicture String?
-
-  // Scout club affiliation
-  clubName String? // For scouts - their club affiliation
-
-  // Document fields
-  documentNumber String?
-  documentPhotos String[] // Array of document photo URLs
-  
-  // Verification fields
-  verificationStatus VerificationStatus @default(PENDING)
+  id                  String             @id @default(uuid())
+  name                String
+  email               String             @unique
+  password            String
+  role                UserRole           @default(PLAYER)
+  playerProfileId     String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  phoneNumber         String?
+  countryCode         String?
+  city                String?
+  state               String?
+  country             String?
+  pincode             String?
+  profilePicture      String?
+  documentNumber      String?
+  documentPhotos      String[]
+  verificationStatus  VerificationStatus @default(PENDING)
   verificationRemarks String?
-  verifiedBy   String?
-  verifiedAt   DateTime?
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  verifiedBy          String?
+  verifiedAt          DateTime?
+  clubName            String?
+  playerProfile       PlayerProfile?
+  scoutReports        ScoutReport[]
+  uploadedVideos      UploadedVideo[]
+  videoSelections     VideoSelection[]
+}
 
-  // Relations
-  playerProfile PlayerProfile?
-  uploadedVideos UploadedVideo[]
-  scoutReports ScoutReport[]
-  videoSelections VideoSelection[]
+model PlayerProfile {
+  id                 String               @id @default(uuid())
+  userId             String               @unique
+  age                Int
+  position           String
+  club               String?
+  nationality        String?
+  speed              Float?
+  dribbling          Float?
+  passing            Float?
+  shooting           Float?
+  defending          Float?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  performanceMetrics PerformanceMetrics[]
+  user               User                 @relation(fields: [userId], references: [id])
+  scoutReports       ScoutReport[]
+  uploadedVideos     UploadedVideo[]
+}
+
+model UploadedVideo {
+  id                 String               @id @default(uuid())
+  userId             String
+  playerProfileId    String?
+  videoUrl           String
+  googleDriveFileId  String?
+  status             VideoStatus          @default(PENDING)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  processedData      AIAnalysisData?
+  performanceMetrics PerformanceMetrics[]
+  playerProfile      PlayerProfile?       @relation(fields: [playerProfileId], references: [id])
+  user               User                 @relation(fields: [userId], references: [id])
+  videoSelections    VideoSelection[]
+}
+
+model AIAnalysisData {
+  id               String        @id @default(uuid())
+  videoId          String        @unique
+  detectedPlayerId String
+  trackingData     Json
+  keyEvents        Json
+  createdAt        DateTime      @default(now())
+  uploadedVideo    UploadedVideo @relation(fields: [videoId], references: [id])
+}
+
+model PerformanceMetrics {
+  id              String         @id @default(uuid())
+  playerProfileId String
+  speed           Float
+  dribbling       Float
+  passing         Float
+  shooting        Float
+  agility         Float
+  stamina         Float
+  intelligence    Float
+  createdAt       DateTime       @default(now())
+  videoId         String?
+  playerProfile   PlayerProfile  @relation(fields: [playerProfileId], references: [id])
+  video           UploadedVideo? @relation(fields: [videoId], references: [id])
+}
+
+model ScoutReport {
+  id              String        @id @default(uuid())
+  scoutId         String
+  playerProfileId String
+  rating          Float
+  comments        String?
+  createdAt       DateTime      @default(now())
+  playerProfile   PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  scout           User          @relation(fields: [scoutId], references: [id])
+}
+
+model VideoSelection {
+  id         String          @id @default(uuid())
+  videoId    String
+  scoutId    String
+  status     SelectionStatus @default(VIEWED)
+  clubName   String?
+  comments   String?
+  selectedAt DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  scout      User            @relation(fields: [scoutId], references: [id])
+  video      UploadedVideo   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, scoutId])
+  @@index([videoId])
+  @@index([scoutId])
 }
 
 enum UserRole {
   PLAYER
   SCOUT
-  ADMIN // New role for account verification
+  ADMIN
 }
 
 enum VerificationStatus {
@@ -66,109 +139,10 @@ enum VerificationStatus {
   REJECTED
 }
 
-//player profile model
-model PlayerProfile {
-  id           String  @id @default(uuid())
-  userId       String  @unique
-  age          Int
-  position     String
-  club         String?
-  nationality  String?
-  speed        Float?
-  dribbling    Float?
-  passing      Float?
-  shooting     Float?
-  defending    Float?
-
-  // Relations
-  user         User @relation(fields: [userId], references: [id])
-  performanceMetrics PerformanceMetrics[]
-  uploadedVideos UploadedVideo[]
-  scoutReports ScoutReport[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model UploadedVideo {
-  id           String  @id @default(uuid())
-  userId       String
-  playerProfileId String?
-  videoUrl     String
-  status       VideoStatus @default(PENDING) // [PENDING, PROCESSING, ANALYZED]
-  processedData AIAnalysisData?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relations
-  user         User @relation(fields: [userId], references: [id])
-  playerProfile PlayerProfile? @relation(fields: [playerProfileId], references: [id])
-  videoSelections VideoSelection[]
-}
-
 enum VideoStatus {
   PENDING
   PROCESSING
   ANALYZED
-}
-
-model AIAnalysisData {
-  id           String  @id @default(uuid())
-  videoId      String  @unique
-  detectedPlayerId String
-  trackingData Json // Stores bounding box coordinates, movements
-  keyEvents    Json // Stores AI-detected passes, shots, tackles, etc.
-  createdAt    DateTime @default(now())
-
-  // Relations
-  uploadedVideo UploadedVideo @relation(fields: [videoId], references: [id])
-}
-model PerformanceMetrics {
-  id            String  @id @default(uuid())
-  playerProfileId String
-  speed         Float
-  dribbling     Float
-  passing       Float
-  shooting      Float
-  agility       Float
-  stamina       Float
-  intelligence  Float
-  createdAt     DateTime @default(now())
-
-  // Relations
-  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
-}
-
-model ScoutReport {
-  id           String  @id @default(uuid())
-  scoutId      String
-  playerProfileId String
-  rating       Float
-  comments     String?
-  createdAt    DateTime @default(now())
-
-  // Relations
-  scout        User @relation(fields: [scoutId], references: [id])
-  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
-}
-
-model VideoSelection {
-  id           String  @id @default(uuid())
-  videoId      String
-  scoutId      String
-  status       SelectionStatus @default(VIEWED)
-  clubName     String?
-  comments     String?
-  selectedAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relations
-  video        UploadedVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  scout        User @relation(fields: [scoutId], references: [id])
-  
-  @@unique([videoId, scoutId])
-  @@index([videoId])
-  @@index([scoutId])
 }
 
 enum SelectionStatus {

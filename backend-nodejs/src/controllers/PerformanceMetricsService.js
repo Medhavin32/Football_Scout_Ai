@@ -3,13 +3,15 @@ import FormData from 'form-data';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
+import { verifyToken } from './authController.js';
+import { requireVerifiedProfile } from '../middleware/profileCompletionMiddleware.js';
 
 class PerformanceMetricsService {
   constructor() {
     this.prisma = new PrismaClient();
   }
 
-  async processVideoAndSaveMetrics(playerProfileId, jerseyNumber, videoPath) {
+  async processVideoAndSaveMetrics(playerProfileId, videoId, jerseyNumber, videoPath) {
     let fileStream = null;
     try {
       // Create FormData
@@ -33,7 +35,7 @@ class PerformanceMetricsService {
         }
       );
 
-      // Extract performance metrics
+      // Extract performance metrics from Python service
       const stats = response.data.player_stats;
 
       // Only save performance metrics if playerProfileId is provided
@@ -47,6 +49,7 @@ class PerformanceMetricsService {
         const performanceMetrics = await this.prisma.performanceMetrics.create({
           data: {
             playerProfileId,
+            videoId: videoId || null,
             speed: topSpeed,
             dribbling: stats.dribble_success,
             passing: stats.pass_accuracy,
@@ -59,6 +62,15 @@ class PerformanceMetricsService {
         });
 
         console.log('Performance metrics saved successfully', performanceMetrics);
+
+        // If we know which uploaded video this belongs to, mark it as ANALYZED
+        if (videoId) {
+          await this.prisma.uploadedVideo.update({
+            where: { id: videoId },
+            data: { status: 'ANALYZED' }
+          });
+        }
+
         return { stats, performanceMetrics };
       } else {
         console.log('No playerProfileId provided, skipping performance metrics save');
@@ -125,16 +137,29 @@ function performanceVideoUploadHandler(req, res) {
   return async (req, res) => {
     try {
       // Multer middleware adds file to req.file
-      const { playerProfileId, jerseyNumber } = req.body;
+      const { videoId, jerseyNumber } = req.body;
       const videoFile = req.file;
 
       if (!videoFile) {
         return res.status(400).json({ error: 'No video file uploaded' });
       }
 
+      // Resolve player profile for the authenticated user
+      const user = await performanceMetricsService.prisma.user.findUnique({
+        where: { id: req.user.uid },
+        include: { playerProfile: true }
+      });
+
+      if (!user || !user.playerProfile) {
+        return res.status(400).json({ error: 'Player profile not found for this user' });
+      }
+
+      const playerProfileId = user.playerProfile.id;
+
       const metrics = await performanceMetricsService.processVideoAndSaveMetrics(
-        playerProfileId, 
-        parseInt(jerseyNumber), 
+        playerProfileId,
+        videoId || null,
+        parseInt(jerseyNumber, 10),
         videoFile.path
       );
 
@@ -156,14 +181,17 @@ function performanceVideoUploadHandler(req, res) {
 // Note: This route should also use requireVerifiedProfile middleware
 // Import it in server.js and apply it here if needed
 function setupRoutes(app) {
-  const upload = multer({ 
-    dest: 'uploads/', 
+  const upload = multer({
+    dest: 'uploads/',
     limits: { fileSize: 50 * 1024 * 1024 } // 50MB file size limit
   });
 
+  // Protected route: requires authenticated & verified player profile
   app.post(
-    '/upload-performance-video', 
-    upload.single('video'), 
+    '/upload-performance-video',
+    verifyToken,
+    requireVerifiedProfile,
+    upload.single('video'),
     performanceVideoUploadHandler()
   );
 }

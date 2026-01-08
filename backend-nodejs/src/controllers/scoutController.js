@@ -101,7 +101,13 @@ export const getPlayerById = async (req, res) => {
               orderBy: { createdAt: 'desc' }
             },
             uploadedVideos: {
-              orderBy: { createdAt: 'desc' }
+              orderBy: { createdAt: 'desc' },
+              include: {
+                performanceMetrics: {
+                  orderBy: { createdAt: 'desc' },
+                  take: 1 // Latest metrics per video
+                }
+              }
             },
             scoutReports: {
               include: {
