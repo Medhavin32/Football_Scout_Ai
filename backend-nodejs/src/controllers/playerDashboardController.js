@@ -23,7 +23,15 @@ export const getPlayerDashboard = async (req, res) => {
                       select: {
                         id: true,
                         name: true,
-                        email: true
+                        email: true,
+                        profilePicture: true,
+                        phoneNumber: true,
+                        countryCode: true,
+                        city: true,
+                        state: true,
+                        country: true,
+                        clubName: true,
+                        verificationStatus: true
                       }
                     }
                   },

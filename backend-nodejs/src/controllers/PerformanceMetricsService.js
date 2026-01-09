@@ -45,15 +45,20 @@ class PerformanceMetricsService {
         // Python backend now returns distance_covered in meters, e.g. "905.35 m"
         const distanceCovered = parseFloat(stats.distance_covered.replace(' m', ''));
 
+        // Ensure metrics are normalized to 0-100 range (Python backend should normalize, but add safety checks)
+        const normalizedDribbling = Math.max(0, Math.min(100, parseFloat(stats.dribble_success) || 0));
+        const normalizedPassing = Math.max(0, Math.min(100, parseFloat(stats.pass_accuracy) || 0));
+        const normalizedShooting = Math.max(0, Math.min(100, parseFloat(stats.shot_conversion) || 0));
+
         // Save to database
         const performanceMetrics = await this.prisma.performanceMetrics.create({
           data: {
             playerProfileId,
             videoId: videoId || null,
-            speed: topSpeed,
-            dribbling: stats.dribble_success,
-            passing: stats.pass_accuracy,
-            shooting: stats.shot_conversion,
+            speed: Math.max(0, Math.min(30, topSpeed)), // Cap speed at realistic max (60 km/h)
+            dribbling: normalizedDribbling,
+            passing: normalizedPassing,
+            shooting: normalizedShooting,
             // Additional fields can be mapped or calculated
             agility: calculateAgility(stats),
             stamina: calculateStamina(distanceCovered),

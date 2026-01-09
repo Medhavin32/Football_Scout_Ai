@@ -81,18 +81,15 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: 'Invalid credentials'});
     }
 
-    // Check role for scout login
-    if (role === 'SCOUT') {
-      // Static scout credentials check
-      const SCOUT_EMAIL = 'scout@yourdomain.com';
-      const SCOUT_PASSWORD = 'Qwert12345@';
-
-      if (email !== SCOUT_EMAIL || password !== SCOUT_PASSWORD) {
-        return res.status(403).json({ error: 'Invalid scout credentials' });
-      }
+    // Verify that the user's role matches the requested login role
+    if (user.role.toUpperCase() !== role.toUpperCase()) {
+      return res.status(403).json({ 
+        error: 'Invalid role', 
+        message: `This account is registered as ${user.role}, not ${role}` 
+      });
     }
 
-    // Verify password
+    // Verify password using bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Invalid credentials' });

@@ -77,7 +77,8 @@ export const updateUserProfile = async (req, res) => {
       country,
       pincode,
       documentNumber,
-      documentPhotos
+      documentPhotos,
+      clubName
     } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -132,6 +133,7 @@ export const updateUserProfile = async (req, res) => {
     if (profilePictureUrl !== undefined) updateData.profilePicture = profilePictureUrl;
     if (documentNumber !== undefined) updateData.documentNumber = documentNumber || null;
     if (documentPhotos !== undefined) updateData.documentPhotos = documentPhotos || [];
+    if (clubName !== undefined) updateData.clubName = clubName || null;
 
     const updatedUser = await prisma.user.update({
       where: { id: req.user.uid },
@@ -149,6 +151,7 @@ export const updateUserProfile = async (req, res) => {
         profilePicture: true,
         documentNumber: true,
         documentPhotos: true,
+        clubName: true,
         verificationStatus: true,
         createdAt: true,
         updatedAt: true
@@ -206,6 +209,7 @@ export const getUserProfile = async (req, res) => {
       profilePicture: user.profilePicture,
       documentNumber: user.documentNumber,
       documentPhotos: user.documentPhotos,
+      clubName: user.clubName,
       verificationStatus: user.verificationStatus,
       verificationRemarks: user.verificationRemarks,
       verifiedBy: user.verifiedBy,
